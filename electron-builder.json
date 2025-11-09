@@ -1,0 +1,40 @@
+{
+  "appId": "com.visionzero.vizclient",
+  "productName": "VIZ Client",
+  "directories": {
+    "output": "release",
+    "buildResources": "build"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*",
+    "package.json"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "public/favicon.ico",
+    "artifactName": "VIZ-Client-Setup-${version}.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "VIZ Client"
+  },
+  "mac": {
+    "target": "dmg",
+    "icon": "public/favicon.ico",
+    "category": "public.app-category.utilities"
+  },
+  "linux": {
+    "target": "AppImage",
+    "icon": "public/favicon.ico",
+    "category": "Utility"
+  }
+}

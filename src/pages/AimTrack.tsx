@@ -39,7 +39,12 @@ const AimTrack = () => {
     setScore(0);
     setTimeLeft(selected.duration);
     setIsActive(true);
-    spawnTargets(selected.targetCount, selected.targetSize);
+    setIsPaused(false);
+    
+    // Delay to ensure gameAreaRef is ready
+    setTimeout(() => {
+      spawnTargets(selected.targetCount, selected.targetSize);
+    }, 100);
   };
 
   const spawnTargets = (count: number, size: number) => {
@@ -114,6 +119,16 @@ const AimTrack = () => {
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, []);
+
+  // Ensure targets respawn if they somehow disappear
+  useEffect(() => {
+    if (isActive && !isPaused && targets.length === 0) {
+      const selected = scenarios.find((s) => s.id === scenario);
+      if (selected) {
+        spawnTargets(selected.targetCount, selected.targetSize);
+      }
+    }
+  }, [isActive, isPaused, targets.length, scenario]);
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -219,12 +234,14 @@ const AimTrack = () => {
               <div
                 key={target.id}
                 onClick={() => handleTargetClick(target.id)}
-                className="absolute rounded-full bg-primary hover:bg-primary/80 transition-all cursor-crosshair shadow-glow-cyan"
+                className="absolute rounded-full transition-all cursor-crosshair border-4 border-cyan-400"
                 style={{
                   left: target.x,
                   top: target.y,
                   width: target.size,
                   height: target.size,
+                  background: 'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)',
+                  boxShadow: '0 0 20px rgba(132, 250, 176, 0.6), 0 0 40px rgba(132, 250, 176, 0.4)',
                 }}
               />
             ))}

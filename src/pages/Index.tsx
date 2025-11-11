@@ -18,16 +18,26 @@ const Index = () => {
     {
       id: "aimtrack",
       title: "VIZ AimTrack",
-      description: "Advanced aim tracking and analysis for precision improvement",
+      description: "Advanced aim trainer with multiple scenarios and sensitivity control",
       icon: Target,
-      available: false,
+      available: true,
+      route: "/aimtrack",
     },
     {
-      id: "sync",
-      title: "VIZ Sync",
-      description: "Team coordination and strategy synchronization tool",
+      id: "react",
+      title: "VIZ React",
+      description: "Reaction time testing and measurement tool",
       icon: Zap,
+      available: true,
+      route: "/react",
+    },
+    {
+      id: "map",
+      title: "VIZ Map",
+      description: "Valorant strategy planner with maps and utility placement",
+      icon: Settings,
       available: false,
+      route: "/map",
     },
   ];
 

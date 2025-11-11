@@ -5,25 +5,35 @@ import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 
-const React = () => {
+const ReactTest = () => {
   const navigate = useNavigate();
   const [age, setAge] = useState("");
   const [hasStarted, setHasStarted] = useState(false);
   const [showTarget, setShowTarget] = useState(false);
   const [startTime, setStartTime] = useState(0);
-  const [reactionTime, setReactionTime] = useState<number | null>(null);
+  const [currentAttempt, setCurrentAttempt] = useState(0);
   const [attempts, setAttempts] = useState<number[]>([]);
+  const [isComplete, setIsComplete] = useState(false);
+  const maxAttempts = 10;
 
   const startTest = () => {
     if (!age) return;
     setHasStarted(true);
-    setReactionTime(null);
     setShowTarget(false);
+    setCurrentAttempt(0);
+    setAttempts([]);
+    setIsComplete(false);
+    nextRound();
+  };
 
+  const nextRound = () => {
+    setShowTarget(false);
     const delay = Math.random() * 3000 + 2000;
     setTimeout(() => {
-      setShowTarget(true);
-      setStartTime(Date.now());
+      if (currentAttempt < maxAttempts) {
+        setShowTarget(true);
+        setStartTime(Date.now());
+      }
     }, delay);
   };
 
@@ -31,18 +41,26 @@ const React = () => {
     if (!showTarget) return;
 
     const time = Date.now() - startTime;
-    setReactionTime(time);
-    setAttempts((prev) => [...prev, time]);
+    const newAttempts = [...attempts, time];
+    setAttempts(newAttempts);
     setShowTarget(false);
-    setHasStarted(false);
+    setCurrentAttempt((prev) => prev + 1);
+
+    if (currentAttempt + 1 >= maxAttempts) {
+      setIsComplete(true);
+      setHasStarted(false);
+    } else {
+      nextRound();
+    }
   };
 
   const reset = () => {
     setAge("");
     setHasStarted(false);
     setShowTarget(false);
-    setReactionTime(null);
+    setCurrentAttempt(0);
     setAttempts([]);
+    setIsComplete(false);
   };
 
   const averageTime = attempts.length > 0
@@ -69,7 +87,7 @@ const React = () => {
             <p className="text-muted-foreground">Test your reaction time</p>
           </div>
 
-          {!hasStarted && reactionTime === null && (
+          {!hasStarted && !isComplete && (
             <Card className="p-8 border-primary/20 bg-card/50 backdrop-blur-sm text-center space-y-6">
               <div>
                 <label className="block text-foreground font-audiowide mb-2">Your Age</label>
@@ -87,55 +105,56 @@ const React = () => {
                 disabled={!age}
                 className="w-full max-w-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-glow-cyan"
               >
-                Start Test
+                Start Test (10 Attempts)
               </Button>
-
-              {attempts.length > 0 && (
-                <div className="mt-8 pt-8 border-t border-primary/20">
-                  <h3 className="text-lg font-audiowide text-foreground mb-4">Your Results</h3>
-                  <div className="space-y-2">
-                    <p className="text-muted-foreground">
-                      Average: <span className="text-primary font-semibold">{averageTime}ms</span>
-                    </p>
-                    <p className="text-muted-foreground">
-                      Attempts: <span className="text-foreground">{attempts.length}</span>
-                    </p>
-                    <Button onClick={reset} variant="outline" className="mt-4">
-                      Reset
-                    </Button>
-                  </div>
-                </div>
-              )}
             </Card>
           )}
 
-          {hasStarted && (
-            <div
-              onClick={handleClick}
-              className={`w-full h-96 rounded-lg border-2 flex items-center justify-center cursor-pointer transition-all ${
-                showTarget
-                  ? "bg-primary border-primary shadow-glow-cyan"
-                  : "bg-card/30 border-primary/20"
-              }`}
-            >
-              <p className="text-2xl font-audiowide text-foreground">
-                {showTarget ? "CLICK NOW!" : "Wait..."}
-              </p>
+          {hasStarted && !isComplete && (
+            <div className="space-y-4">
+              <div className="text-center text-foreground font-audiowide">
+                Attempt {currentAttempt + 1} / {maxAttempts}
+              </div>
+              <div
+                onClick={handleClick}
+                className={`w-full h-96 rounded-lg border-2 flex items-center justify-center cursor-pointer transition-all ${
+                  showTarget
+                    ? "bg-primary border-primary shadow-glow-cyan"
+                    : "bg-card/30 border-primary/20"
+                }`}
+              >
+                <p className="text-2xl font-audiowide text-foreground">
+                  {showTarget ? "CLICK NOW!" : "Wait..."}
+                </p>
+              </div>
             </div>
           )}
 
-          {reactionTime !== null && !hasStarted && (
+          {isComplete && (
             <Card className="p-8 border-primary/20 bg-card/50 backdrop-blur-sm text-center space-y-6">
-              <h2 className="text-3xl font-audiowide text-primary">{reactionTime}ms</h2>
-              <p className="text-muted-foreground">
-                {reactionTime < 200 ? "Incredible!" : reactionTime < 300 ? "Great!" : "Good!"}
-              </p>
-              <Button
-                onClick={startTest}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground"
-              >
-                Try Again
-              </Button>
+              <h2 className="text-2xl font-audiowide text-foreground mb-4">Test Complete!</h2>
+              <div className="space-y-3">
+                <p className="text-muted-foreground">
+                  Average Reaction Time: <span className="text-primary text-3xl font-semibold block mt-2">{averageTime}ms</span>
+                </p>
+                <p className="text-muted-foreground">
+                  Best: <span className="text-foreground font-semibold">{Math.min(...attempts)}ms</span>
+                </p>
+                <p className="text-muted-foreground">
+                  Worst: <span className="text-foreground font-semibold">{Math.max(...attempts)}ms</span>
+                </p>
+              </div>
+              <div className="flex gap-3 justify-center pt-4">
+                <Button
+                  onClick={startTest}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                >
+                  Repeat Test
+                </Button>
+                <Button onClick={reset} variant="outline">
+                  New User
+                </Button>
+              </div>
             </Card>
           )}
         </div>
@@ -144,4 +163,4 @@ const React = () => {
   );
 };
 
-export default React;
+export default ReactTest;

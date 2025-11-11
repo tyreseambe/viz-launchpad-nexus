@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
 import { ArrowLeft, Play, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
@@ -19,7 +20,8 @@ const AimTrack = () => {
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [isActive, setIsActive] = useState(false);
-  const [sensitivity, setSensitivity] = useState([1]);
+  const [isPaused, setIsPaused] = useState(false);
+  const [sensitivity, setSensitivity] = useState(1);
   const gameAreaRef = useRef<HTMLDivElement>(null);
 
   const scenarios = [
@@ -59,6 +61,8 @@ const AimTrack = () => {
   };
 
   const handleTargetClick = (targetId: number) => {
+    if (isPaused) return;
+    
     const selected = scenarios.find((s) => s.id === scenario);
     if (!selected) return;
 
@@ -66,10 +70,14 @@ const AimTrack = () => {
     setTargets((prev) => prev.filter((t) => t.id !== targetId));
     
     setTimeout(() => {
-      if (isActive) {
+      if (isActive && !isPaused) {
         spawnTargets(selected.targetCount, selected.targetSize);
       }
     }, 100);
+  };
+
+  const togglePause = () => {
+    setIsPaused((prev) => !prev);
   };
 
   const reset = () => {
@@ -81,7 +89,7 @@ const AimTrack = () => {
   };
 
   useEffect(() => {
-    if (!isActive || timeLeft <= 0) {
+    if (!isActive || timeLeft <= 0 || isPaused) {
       if (timeLeft === 0 && isActive) {
         setIsActive(false);
         setTargets([]);
@@ -94,7 +102,18 @@ const AimTrack = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isActive, timeLeft]);
+  }, [isActive, timeLeft, isPaused]);
+
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === 'p' || e.key === 'P') {
+        togglePause();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -119,6 +138,9 @@ const AimTrack = () => {
               <div className="text-foreground font-audiowide">
                 Time: <span className="text-secondary text-2xl">{timeLeft}s</span>
               </div>
+              <Button onClick={togglePause} variant="outline" className="border-primary/30">
+                {isPaused ? "Resume (P)" : "Pause (P)"}
+              </Button>
               <Button onClick={reset} variant="outline" className="border-primary/30">
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Reset
@@ -135,17 +157,25 @@ const AimTrack = () => {
             </div>
 
             <Card className="p-6 border-primary/20 bg-card/50 backdrop-blur-sm">
-              <h3 className="text-lg font-audiowide text-foreground mb-4">Sensitivity</h3>
+              <h3 className="text-lg font-audiowide text-foreground mb-4">Sensitivity (Mouse Speed)</h3>
               <div className="flex items-center gap-4">
                 <Slider
-                  value={sensitivity}
-                  onValueChange={setSensitivity}
+                  value={[sensitivity]}
+                  onValueChange={(val) => setSensitivity(val[0])}
                   min={0.1}
                   max={3}
-                  step={0.1}
+                  step={0.01}
                   className="flex-1"
                 />
-                <span className="text-foreground font-semibold w-12">{sensitivity[0].toFixed(1)}x</span>
+                <Input
+                  type="number"
+                  value={sensitivity}
+                  onChange={(e) => setSensitivity(parseFloat(e.target.value) || 0.1)}
+                  min={0.1}
+                  max={3}
+                  step={0.001}
+                  className="w-24"
+                />
               </div>
             </Card>
 
@@ -172,8 +202,19 @@ const AimTrack = () => {
           <div
             ref={gameAreaRef}
             className="relative w-full h-[600px] bg-card/30 backdrop-blur-sm border-2 border-primary/20 rounded-lg overflow-hidden"
-            style={{ cursor: "crosshair" }}
+            style={{ 
+              cursor: "crosshair",
+              pointerEvents: isPaused ? "none" : "auto",
+              opacity: isPaused ? 0.5 : 1,
+            }}
           >
+            {isPaused && (
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <div className="text-4xl font-audiowide text-primary bg-card/90 px-8 py-4 rounded-lg border-2 border-primary">
+                  PAUSED - Press P to Resume
+                </div>
+              </div>
+            )}
             {targets.map((target) => (
               <div
                 key={target.id}
@@ -184,7 +225,6 @@ const AimTrack = () => {
                   top: target.y,
                   width: target.size,
                   height: target.size,
-                  transform: `scale(${sensitivity[0]})`,
                 }}
               />
             ))}

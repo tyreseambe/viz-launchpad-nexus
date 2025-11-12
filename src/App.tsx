@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Strafe from "./pages/Strafe";
+import StrafeOverlay from "./pages/StrafeOverlay";
 import AimTrack from "./pages/AimTrack";
 import ReactTest from "./pages/ReactTest";
 import Map from "./pages/Map";
@@ -21,6 +22,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/strafe" element={<Strafe />} />
+          <Route path="/strafe-overlay" element={<StrafeOverlay />} />
           <Route path="/aimtrack" element={<AimTrack />} />
           <Route path="/react" element={<ReactTest />} />
           <Route path="/map" element={<Map />} />

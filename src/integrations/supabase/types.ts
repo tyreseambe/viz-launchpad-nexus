@@ -14,7 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      aim_leaderboard: {
+        Row: {
+          created_at: string
+          id: string
+          player_name: string
+          scenario: string
+          score: number
+          sensitivity: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          player_name: string
+          scenario: string
+          score: number
+          sensitivity: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          player_name?: string
+          scenario?: string
+          score?: number
+          sensitivity?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

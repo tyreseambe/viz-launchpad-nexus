@@ -1,5 +1,5 @@
 import { AppCard } from "@/components/AppCard";
-import { Gamepad2, Target, Zap, Settings, Info } from "lucide-react";
+import { Gamepad2, Target, Zap, Map, Eye, Info, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
@@ -14,6 +14,14 @@ const Index = () => {
       icon: Gamepad2,
       available: true,
       route: "/strafe",
+    },
+    {
+      id: "strafe-overlay",
+      title: "VIZ Strafe Overlay",
+      description: "Transparent overlay for OBS/streaming - shows only keypresses",
+      icon: Eye,
+      available: true,
+      route: "/strafe-overlay",
     },
     {
       id: "aimtrack",
@@ -35,8 +43,8 @@ const Index = () => {
       id: "map",
       title: "VIZ Map",
       description: "Valorant strategy planner with maps and utility placement",
-      icon: Settings,
-      available: false,
+      icon: Map,
+      available: true,
       route: "/map",
     },
   ];

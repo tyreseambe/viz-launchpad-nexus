@@ -2,9 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Play, RotateCcw } from "lucide-react";
+import { ArrowLeft, Play, RotateCcw, Trophy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Target {
   id: number;
@@ -22,6 +24,9 @@ const AimTrack = () => {
   const [isActive, setIsActive] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [sensitivity, setSensitivity] = useState(1);
+  const [playerName, setPlayerName] = useState("");
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
   const gameAreaRef = useRef<HTMLDivElement>(null);
 
   const scenarios = [
@@ -93,11 +98,47 @@ const AimTrack = () => {
     setIsActive(false);
   };
 
+  const submitScore = async () => {
+    if (!playerName.trim()) {
+      toast.error("Please enter your name");
+      return;
+    }
+    
+    const { error } = await supabase.from("aim_leaderboard").insert({
+      player_name: playerName,
+      scenario: scenario || "",
+      score: score,
+      sensitivity: sensitivity,
+    });
+
+    if (error) {
+      toast.error("Failed to submit score");
+    } else {
+      toast.success("Score submitted!");
+      fetchLeaderboard();
+    }
+  };
+
+  const fetchLeaderboard = async () => {
+    const { data, error } = await supabase
+      .from("aim_leaderboard")
+      .select("*")
+      .order("score", { ascending: false })
+      .limit(10);
+
+    if (!error && data) {
+      setLeaderboardData(data);
+    }
+  };
+
   useEffect(() => {
     if (!isActive || timeLeft <= 0 || isPaused) {
       if (timeLeft === 0 && isActive) {
         setIsActive(false);
         setTargets([]);
+        if (score > 0) {
+          toast.success(`Game Over! Final Score: ${score}`);
+        }
       }
       return;
     }
@@ -107,7 +148,7 @@ const AimTrack = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isActive, timeLeft, isPaused]);
+  }, [isActive, timeLeft, isPaused, score]);
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -145,6 +186,18 @@ const AimTrack = () => {
             Back to Dashboard
           </Button>
 
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowLeaderboard(!showLeaderboard);
+              if (!showLeaderboard) fetchLeaderboard();
+            }}
+            className="border-primary/30 hover:border-primary hover:bg-primary/10"
+          >
+            <Trophy className="w-4 h-4 mr-2" />
+            {showLeaderboard ? "Hide" : "Show"} Leaderboard
+          </Button>
+
           {scenario && (
             <div className="flex items-center gap-4">
               <div className="text-foreground font-audiowide">
@@ -164,12 +217,55 @@ const AimTrack = () => {
           )}
         </div>
 
+        {showLeaderboard && (
+          <Card className="p-6 border-primary/20 bg-card/50 backdrop-blur-sm mb-8">
+            <h2 className="text-2xl font-audiowide text-foreground mb-4 flex items-center gap-2">
+              <Trophy className="w-6 h-6 text-primary" />
+              Global Leaderboard
+            </h2>
+            <div className="space-y-2">
+              {leaderboardData.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">No scores yet. Be the first!</p>
+              ) : (
+                leaderboardData.map((entry, index) => (
+                  <div
+                    key={entry.id}
+                    className="flex items-center justify-between p-3 bg-background/50 rounded-lg border border-primary/10"
+                  >
+                    <div className="flex items-center gap-4">
+                      <span className="text-2xl font-bold text-primary w-8">#{index + 1}</span>
+                      <div>
+                        <p className="font-audiowide text-foreground">{entry.player_name}</p>
+                        <p className="text-sm text-muted-foreground">{entry.scenario}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-bold text-primary">{entry.score}</p>
+                      <p className="text-xs text-muted-foreground">Sens: {entry.sensitivity}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+        )}
+
         {!scenario ? (
           <div className="space-y-8">
             <div className="text-center mb-8">
               <h1 className="text-4xl font-audiowide text-foreground mb-4">VIZ AimTrack</h1>
               <p className="text-muted-foreground">Select a scenario to begin training</p>
             </div>
+
+            <Card className="p-6 border-primary/20 bg-card/50 backdrop-blur-sm">
+              <h3 className="text-lg font-audiowide text-foreground mb-4">Player Name</h3>
+              <Input
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                placeholder="Enter your name for leaderboard"
+                className="mb-2"
+              />
+            </Card>
 
             <Card className="p-6 border-primary/20 bg-card/50 backdrop-blur-sm">
               <h3 className="text-lg font-audiowide text-foreground mb-4">Sensitivity (Mouse Speed)</h3>
@@ -214,9 +310,27 @@ const AimTrack = () => {
             </div>
           </div>
         ) : (
-          <div
-            ref={gameAreaRef}
-            className="relative w-full h-[600px] bg-card/30 backdrop-blur-sm border-2 border-primary/20 rounded-lg overflow-hidden"
+          <div className="space-y-4">
+            {timeLeft === 0 && (
+              <Card className="p-6 border-primary/20 bg-card/50 backdrop-blur-sm">
+                <h3 className="text-2xl font-audiowide text-foreground mb-4">Submit Your Score</h3>
+                <div className="flex gap-4">
+                  <Input
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
+                    placeholder="Enter your name"
+                    className="flex-1"
+                  />
+                  <Button onClick={submitScore} className="bg-primary hover:bg-primary/80">
+                    Submit Score
+                  </Button>
+                </div>
+              </Card>
+            )}
+            
+            <div
+              ref={gameAreaRef}
+              className="relative w-full h-[600px] bg-card/30 backdrop-blur-sm border-2 border-primary/20 rounded-lg overflow-hidden"
             style={{ 
               cursor: "crosshair",
               pointerEvents: isPaused ? "none" : "auto",
@@ -245,6 +359,25 @@ const AimTrack = () => {
                 }}
               />
             ))}
+
+            {/* Gun Model */}
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 pointer-events-none">
+              <svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Gun body */}
+                <rect x="30" y="30" width="60" height="15" fill="hsl(var(--primary))" rx="2" />
+                <rect x="20" y="35" width="15" height="8" fill="hsl(var(--primary))" rx="1" />
+                {/* Barrel */}
+                <rect x="85" y="32" width="25" height="11" fill="hsl(var(--foreground))" rx="1" />
+                {/* Handle */}
+                <rect x="40" y="45" width="12" height="25" fill="hsl(var(--primary))" rx="2" />
+                {/* Trigger */}
+                <rect x="48" y="50" width="6" height="8" fill="hsl(var(--foreground))" rx="1" />
+                {/* Scope */}
+                <rect x="55" y="20" width="20" height="8" fill="hsl(var(--secondary))" rx="1" />
+                <line x1="60" y1="24" x2="70" y2="24" stroke="hsl(var(--primary))" strokeWidth="2" />
+              </svg>
+            </div>
+          </div>
           </div>
         )}
       </div>

@@ -2,11 +2,13 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Play, RotateCcw, Trophy } from "lucide-react";
+import { ArrowLeft, Play, RotateCcw, Trophy, LogOut, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { User } from "@supabase/supabase-js";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Target {
   id: number;
@@ -17,9 +19,12 @@ interface Target {
 
 const AimTrack = () => {
   const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
   const [scenario, setScenario] = useState<string | null>(null);
   const [targets, setTargets] = useState<Target[]>([]);
   const [score, setScore] = useState(0);
+  const [combo, setCombo] = useState(0);
+  const [maxCombo, setMaxCombo] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -27,7 +32,9 @@ const AimTrack = () => {
   const [playerName, setPlayerName] = useState("");
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
+  const [selectedScenarioFilter, setSelectedScenarioFilter] = useState<string>("all");
   const gameAreaRef = useRef<HTMLDivElement>(null);
+  const comboTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const scenarios = [
     { id: "grid", name: "Grid Shot", duration: 60, targetCount: 1, targetSize: 80 },
@@ -76,7 +83,18 @@ const AimTrack = () => {
     const selected = scenarios.find((s) => s.id === scenario);
     if (!selected) return;
 
-    setScore((prev) => prev + 1);
+    // Combo system
+    const newCombo = combo + 1;
+    setCombo(newCombo);
+    if (newCombo > maxCombo) setMaxCombo(newCombo);
+    
+    // Reset combo timer
+    if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
+    comboTimerRef.current = setTimeout(() => setCombo(0), 2000);
+
+    // Score with combo multiplier
+    const comboMultiplier = Math.floor(newCombo / 5) + 1;
+    setScore((prev) => prev + (1 * comboMultiplier));
     setTargets((prev) => prev.filter((t) => t.id !== targetId));
     
     setTimeout(() => {
@@ -94,18 +112,23 @@ const AimTrack = () => {
     setScenario(null);
     setTargets([]);
     setScore(0);
+    setCombo(0);
+    setMaxCombo(0);
     setTimeLeft(0);
     setIsActive(false);
+    if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
   };
 
   const submitScore = async () => {
-    if (!playerName.trim()) {
-      toast.error("Please enter your name");
+    if (!user) {
+      toast.error("Please log in to submit scores");
+      navigate("/auth");
       return;
     }
     
     const { error } = await supabase.from("aim_leaderboard").insert({
-      player_name: playerName,
+      user_id: user.id,
+      player_name: playerName || user.email?.split("@")[0] || "Anonymous",
       scenario: scenario || "",
       score: score,
       sensitivity: sensitivity,
@@ -113,23 +136,61 @@ const AimTrack = () => {
 
     if (error) {
       toast.error("Failed to submit score");
+      console.error(error);
     } else {
-      toast.success("Score submitted!");
+      toast.success(`Score submitted! Max Combo: ${maxCombo}x`);
       fetchLeaderboard();
     }
   };
 
   const fetchLeaderboard = async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("aim_leaderboard")
       .select("*")
       .order("score", { ascending: false })
       .limit(10);
+    
+    if (selectedScenarioFilter !== "all") {
+      query = query.eq("scenario", selectedScenarioFilter);
+    }
+
+    const { data, error } = await query;
 
     if (!error && data) {
       setLeaderboardData(data);
     }
   };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast.success("Logged out successfully");
+    navigate("/auth");
+  };
+
+  // Auth state listener
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user?.email) {
+        setPlayerName(session.user.email.split("@")[0]);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user?.email && !playerName) {
+        setPlayerName(session.user.email.split("@")[0]);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (selectedScenarioFilter) {
+      fetchLeaderboard();
+    }
+  }, [selectedScenarioFilter]);
 
   useEffect(() => {
     if (!isActive || timeLeft <= 0 || isPaused) {
@@ -176,7 +237,7 @@ const AimTrack = () => {
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-secondary/5" />
       
       <div className="relative z-10 container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <Button
             variant="outline"
             onClick={() => navigate("/")}
@@ -185,6 +246,31 @@ const AimTrack = () => {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Dashboard
           </Button>
+
+          <div className="flex items-center gap-2">
+            {user ? (
+              <>
+                <span className="text-sm text-muted-foreground">{user.email}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="border-primary/30"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => navigate("/auth")}
+                className="border-primary/30"
+              >
+                Login to Save Scores
+              </Button>
+            )}
+          </div>
 
           <Button
             variant="outline"
@@ -199,10 +285,16 @@ const AimTrack = () => {
           </Button>
 
           {scenario && (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <div className="text-foreground font-audiowide">
                 Score: <span className="text-primary text-2xl">{score}</span>
               </div>
+              {combo > 0 && (
+                <div className="text-foreground font-audiowide animate-pulse">
+                  <Zap className="w-4 h-4 inline text-yellow-400" />
+                  Combo: <span className="text-yellow-400 text-2xl">{combo}x</span>
+                </div>
+              )}
               <div className="text-foreground font-audiowide">
                 Time: <span className="text-secondary text-2xl">{timeLeft}s</span>
               </div>
@@ -219,10 +311,23 @@ const AimTrack = () => {
 
         {showLeaderboard && (
           <Card className="p-6 border-primary/20 bg-card/50 backdrop-blur-sm mb-8">
-            <h2 className="text-2xl font-audiowide text-foreground mb-4 flex items-center gap-2">
-              <Trophy className="w-6 h-6 text-primary" />
-              Global Leaderboard
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-audiowide text-foreground flex items-center gap-2">
+                <Trophy className="w-6 h-6 text-primary" />
+                Global Leaderboard
+              </h2>
+              <Select value={selectedScenarioFilter} onValueChange={setSelectedScenarioFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by scenario" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Scenarios</SelectItem>
+                  {scenarios.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               {leaderboardData.length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">No scores yet. Be the first!</p>
@@ -313,18 +418,26 @@ const AimTrack = () => {
           <div className="space-y-4">
             {timeLeft === 0 && (
               <Card className="p-6 border-primary/20 bg-card/50 backdrop-blur-sm">
-                <h3 className="text-2xl font-audiowide text-foreground mb-4">Submit Your Score</h3>
-                <div className="flex gap-4">
-                  <Input
-                    value={playerName}
-                    onChange={(e) => setPlayerName(e.target.value)}
-                    placeholder="Enter your name"
-                    className="flex-1"
-                  />
-                  <Button onClick={submitScore} className="bg-primary hover:bg-primary/80">
-                    Submit Score
+                <h3 className="text-2xl font-audiowide text-foreground mb-4">
+                  Game Over! Score: {score} | Max Combo: {maxCombo}x
+                </h3>
+                {user ? (
+                  <div className="flex gap-4">
+                    <Input
+                      value={playerName}
+                      onChange={(e) => setPlayerName(e.target.value)}
+                      placeholder="Enter your name"
+                      className="flex-1"
+                    />
+                    <Button onClick={submitScore} className="bg-primary hover:bg-primary/80">
+                      Submit Score
+                    </Button>
+                  </div>
+                ) : (
+                  <Button onClick={() => navigate("/auth")} className="w-full bg-primary hover:bg-primary/80">
+                    Login to Submit Score
                   </Button>
-                </div>
+                )}
               </Card>
             )}
             

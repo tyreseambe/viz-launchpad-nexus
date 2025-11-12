@@ -3,17 +3,42 @@ import { ArrowLeft, MapPin, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { useState } from "react";
+import ascentMap from "@/assets/maps/ascent.jpg";
+import bindMap from "@/assets/maps/bind.jpg";
+import havenMap from "@/assets/maps/haven.jpg";
+import splitMap from "@/assets/maps/split.jpg";
+import jettIcon from "@/assets/agents/jett.jpg";
+import smokeIcon from "@/assets/utilities/smoke.jpg";
+import flashIcon from "@/assets/utilities/flash.jpg";
 
 const Map = () => {
   const navigate = useNavigate();
   const [selectedMap, setSelectedMap] = useState<string | null>(null);
 
-  const maps = ["Ascent", "Bind", "Haven", "Split", "Fracture", "Breeze", "Icebox", "Pearl", "Lotus"];
-  const agents = [
-    "Jett", "Phoenix", "Sage", "Sova", "Viper", "Cypher", "Reyna", "Killjoy",
-    "Breach", "Omen", "Raze", "Skye", "Yoru", "Astra", "KAY/O", "Chamber"
+  const maps = [
+    { name: "Ascent", image: ascentMap },
+    { name: "Bind", image: bindMap },
+    { name: "Haven", image: havenMap },
+    { name: "Split", image: splitMap },
   ];
-  const utilities = ["Smoke", "Flash", "Molly", "Dart", "Trap", "Wall"];
+  const agents = [
+    { name: "Jett", icon: jettIcon },
+    { name: "Phoenix", icon: null },
+    { name: "Sage", icon: null },
+    { name: "Sova", icon: null },
+    { name: "Viper", icon: null },
+    { name: "Cypher", icon: null },
+    { name: "Reyna", icon: null },
+    { name: "Killjoy", icon: null },
+  ];
+  const utilities = [
+    { name: "Smoke", icon: smokeIcon },
+    { name: "Flash", icon: flashIcon },
+    { name: "Molly", icon: null },
+    { name: "Dart", icon: null },
+    { name: "Trap", icon: null },
+    { name: "Wall", icon: null },
+  ];
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -44,12 +69,12 @@ const Map = () => {
             <div className="space-y-2">
               {maps.map((map) => (
                 <Button
-                  key={map}
-                  variant={selectedMap === map ? "default" : "outline"}
+                  key={map.name}
+                  variant={selectedMap === map.name ? "default" : "outline"}
                   className="w-full justify-start"
-                  onClick={() => setSelectedMap(map)}
+                  onClick={() => setSelectedMap(map.name)}
                 >
-                  {map}
+                  {map.name}
                 </Button>
               ))}
             </div>
@@ -57,15 +82,25 @@ const Map = () => {
 
           {/* Main Canvas Area */}
           <Card className="p-4 border-primary/20 bg-card/50 backdrop-blur-sm lg:col-span-2">
-            <div className="aspect-video bg-background/50 rounded-lg border-2 border-dashed border-primary/20 flex items-center justify-center">
+            <div className="aspect-video bg-background/50 rounded-lg border-2 border-dashed border-primary/20 overflow-hidden relative">
               {selectedMap ? (
-                <div className="text-center">
-                  <MapPin className="w-16 h-16 text-primary mx-auto mb-4" />
-                  <p className="text-xl font-audiowide text-foreground">{selectedMap}</p>
-                  <p className="text-sm text-muted-foreground mt-2">Map canvas - Coming soon</p>
-                </div>
+                <>
+                  <img 
+                    src={maps.find(m => m.name === selectedMap)?.image} 
+                    alt={selectedMap}
+                    className="w-full h-full object-cover opacity-80"
+                  />
+                  <div className="absolute top-4 left-4 bg-card/90 backdrop-blur-sm px-4 py-2 rounded-lg border border-primary/30">
+                    <p className="text-xl font-audiowide text-foreground flex items-center gap-2">
+                      <MapPin className="w-5 h-5 text-primary" />
+                      {selectedMap}
+                    </p>
+                  </div>
+                </>
               ) : (
-                <p className="text-muted-foreground">Select a map to start planning</p>
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Select a map to start planning</p>
+                </div>
               )}
             </div>
           </Card>
@@ -81,10 +116,19 @@ const Map = () => {
               <div className="grid grid-cols-2 gap-2">
                 {agents.map((agent) => (
                   <div
-                    key={agent}
-                    className="aspect-square bg-primary/10 rounded-lg border border-primary/20 flex items-center justify-center cursor-pointer hover:bg-primary/20 transition-all"
+                    key={agent.name}
+                    className="aspect-square bg-primary/10 rounded-lg border border-primary/20 flex items-center justify-center cursor-pointer hover:bg-primary/20 transition-all overflow-hidden relative group"
                   >
-                    <span className="text-xs font-audiowide text-center">{agent}</span>
+                    {agent.icon ? (
+                      <>
+                        <img src={agent.icon} alt={agent.name} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent flex items-end justify-center pb-2">
+                          <span className="text-xs font-audiowide text-foreground">{agent.name}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-xs font-audiowide text-center">{agent.name}</span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -96,10 +140,19 @@ const Map = () => {
               <div className="grid grid-cols-2 gap-2">
                 {utilities.map((util) => (
                   <div
-                    key={util}
-                    className="aspect-square bg-secondary/10 rounded-lg border border-secondary/20 flex items-center justify-center cursor-pointer hover:bg-secondary/20 transition-all"
+                    key={util.name}
+                    className="aspect-square bg-secondary/10 rounded-lg border border-secondary/20 flex items-center justify-center cursor-pointer hover:bg-secondary/20 transition-all overflow-hidden relative"
                   >
-                    <span className="text-xs font-audiowide text-center">{util}</span>
+                    {util.icon ? (
+                      <>
+                        <img src={util.icon} alt={util.name} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent flex items-end justify-center pb-2">
+                          <span className="text-xs font-audiowide text-foreground">{util.name}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-xs font-audiowide text-center">{util.name}</span>
+                    )}
                   </div>
                 ))}
               </div>

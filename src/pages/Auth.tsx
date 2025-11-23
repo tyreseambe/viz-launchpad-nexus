@@ -9,6 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { ArrowLeft } from "lucide-react";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -21,6 +26,9 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signupData, setSignupData] = useState({ email: "", password: "" });
+  const [verificationCode, setVerificationCode] = useState("");
+  const [showVerification, setShowVerification] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -87,9 +95,11 @@ const Auth = () => {
 
       if (error) throw error;
 
+      setVerificationEmail(signupData.email);
+      setShowVerification(true);
       toast({
-        title: "Success!",
-        description: "Your account has been created. You can now log in.",
+        title: "Verification Code Sent!",
+        description: "Check your email for the 6-digit verification code.",
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -101,6 +111,38 @@ const Auth = () => {
       } else if (error instanceof Error) {
         toast({
           title: "Signup Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: verificationEmail,
+        token: verificationCode,
+        type: 'signup'
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Email Verified!",
+        description: "Your account is now active. You can log in.",
+      });
+      setShowVerification(false);
+      setVerificationCode("");
+    } catch (error) {
+      if (error instanceof Error) {
+        toast({
+          title: "Verification Failed",
           description: error.message,
           variant: "destructive",
         });
@@ -131,10 +173,54 @@ const Auth = () => {
           </div>
           <CardTitle className="text-2xl font-audiowide text-foreground">VIZ Client</CardTitle>
           <CardDescription className="text-muted-foreground">
-            Sign in to access leaderboards and save your progress
+            {showVerification 
+              ? "Enter the verification code sent to your email"
+              : "Sign in to access leaderboards and save your progress"
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {showVerification ? (
+            <form onSubmit={handleVerifyCode} className="space-y-6">
+              <div className="space-y-4">
+                <Label htmlFor="verification-code" className="text-center block">
+                  Verification Code
+                </Label>
+                <div className="flex justify-center">
+                  <InputOTP
+                    maxLength={6}
+                    value={verificationCode}
+                    onChange={(value) => setVerificationCode(value)}
+                  >
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Code sent to {verificationEmail}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Button type="submit" className="w-full" disabled={isLoading || verificationCode.length !== 6}>
+                  {isLoading ? "Verifying..." : "Verify Email"}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  className="w-full" 
+                  onClick={() => setShowVerification(false)}
+                >
+                  Back to Sign Up
+                </Button>
+              </div>
+            </form>
+          ) : (
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/30">
               <TabsTrigger value="login">Login</TabsTrigger>
@@ -205,6 +291,7 @@ const Auth = () => {
               </form>
             </TabsContent>
           </Tabs>
+          )}
         </CardContent>
       </Card>
     </div>

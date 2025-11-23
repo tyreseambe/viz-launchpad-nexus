@@ -1,11 +1,29 @@
+import { useEffect, useState } from "react";
 import { AppCard } from "@/components/AppCard";
-import { Gamepad2, Target, Zap, Map, Eye, Info } from "lucide-react";
+import { Gamepad2, Target, Zap, Map, Eye, Info, User, Trophy, BarChart3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SettingsDialog } from "@/components/SettingsDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { User as SupabaseUser } from "@supabase/supabase-js";
 
 const Index = () => {
   const navigate = useNavigate();
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const apps = [
     {
@@ -49,6 +67,33 @@ const Index = () => {
       route: "/map",
     },
   ];
+
+  const userApps = user ? [
+    {
+      id: "profile",
+      title: "My Profile",
+      description: "View and manage your player profile",
+      icon: User,
+      available: true,
+      route: "/profile",
+    },
+    {
+      id: "leaderboards",
+      title: "Leaderboards",
+      description: "Compare your scores with other players globally",
+      icon: Trophy,
+      available: true,
+      route: "/aimtrack",
+    },
+    {
+      id: "statistics",
+      title: "Statistics",
+      description: "Track your performance and improvement over time",
+      icon: BarChart3,
+      available: true,
+      route: "/stats",
+    },
+  ] : [];
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -106,6 +151,31 @@ const Index = () => {
             </div>
           ))}
         </div>
+
+        {user && userApps.length > 0 && (
+          <div className="mt-16">
+            <h3 className="text-2xl font-audiowide text-foreground mb-6 text-center">
+              My <span className="text-primary">Dashboard</span>
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {userApps.map((app, index) => (
+                <div 
+                  key={app.id} 
+                  className="animate-fade-in"
+                  style={{ animationDelay: `${(apps.length + index) * 100}ms` }}
+                >
+                  <AppCard
+                    title={app.title}
+                    description={app.description}
+                    icon={app.icon}
+                    available={app.available}
+                    onClick={app.route ? () => navigate(app.route) : undefined}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Footer Info */}
         <div className="mt-16 text-center">

@@ -1,7 +1,8 @@
 import { AppCard } from "@/components/AppCard";
-import { Gamepad2, Target, Zap, Map, Eye, Info, Settings } from "lucide-react";
+import { Gamepad2, Target, Zap, Map, Eye, Info } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { SettingsDialog } from "@/components/SettingsDialog";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -69,9 +70,7 @@ const Index = () => {
           </div>
           
           <div className="flex gap-2">
-            <Button variant="outline" size="icon" className="border-primary/30 hover:border-primary hover:bg-primary/10">
-              <Settings className="w-4 h-4" />
-            </Button>
+            <SettingsDialog />
             <Button variant="outline" size="icon" className="border-primary/30 hover:border-primary hover:bg-primary/10">
               <Info className="w-4 h-4" />
             </Button>

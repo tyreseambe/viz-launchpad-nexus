@@ -22,6 +22,7 @@ export type Database = {
           scenario: string
           score: number
           sensitivity: number
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -30,6 +31,7 @@ export type Database = {
           scenario: string
           score: number
           sensitivity: number
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -38,6 +40,34 @@ export type Database = {
           scenario?: string
           score?: number
           sensitivity?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          username?: string
         }
         Relationships: []
       }

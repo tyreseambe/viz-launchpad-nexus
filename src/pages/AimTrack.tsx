@@ -473,23 +473,6 @@ const AimTrack = () => {
               />
             ))}
 
-            {/* Gun Model */}
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 pointer-events-none">
-              <svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                {/* Gun body */}
-                <rect x="30" y="30" width="60" height="15" fill="hsl(var(--primary))" rx="2" />
-                <rect x="20" y="35" width="15" height="8" fill="hsl(var(--primary))" rx="1" />
-                {/* Barrel */}
-                <rect x="85" y="32" width="25" height="11" fill="hsl(var(--foreground))" rx="1" />
-                {/* Handle */}
-                <rect x="40" y="45" width="12" height="25" fill="hsl(var(--primary))" rx="2" />
-                {/* Trigger */}
-                <rect x="48" y="50" width="6" height="8" fill="hsl(var(--foreground))" rx="1" />
-                {/* Scope */}
-                <rect x="55" y="20" width="20" height="8" fill="hsl(var(--secondary))" rx="1" />
-                <line x1="60" y1="24" x2="70" y2="24" stroke="hsl(var(--primary))" strokeWidth="2" />
-              </svg>
-            </div>
           </div>
           </div>
         )}

@@ -3,10 +3,7 @@ import { ArrowLeft, MapPin, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { useState } from "react";
-import ascentMap from "@/assets/maps/ascent.jpg";
-import bindMap from "@/assets/maps/bind.jpg";
-import havenMap from "@/assets/maps/haven.jpg";
-import splitMap from "@/assets/maps/split.jpg";
+import ascentMap from "@/assets/maps/ascent.webp";
 import jettIcon from "@/assets/agents/jett.jpg";
 import smokeIcon from "@/assets/utilities/smoke.jpg";
 import flashIcon from "@/assets/utilities/flash.jpg";
@@ -17,9 +14,6 @@ const Map = () => {
 
   const maps = [
     { name: "Ascent", image: ascentMap },
-    { name: "Bind", image: bindMap },
-    { name: "Haven", image: havenMap },
-    { name: "Split", image: splitMap },
   ];
   const agents = [
     { name: "Jett", icon: jettIcon },

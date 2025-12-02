@@ -9,6 +9,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls, Grid, Sky } from "@react-three/drei";
+import * as THREE from "three";
 
 interface Target {
   id: number;
@@ -443,37 +446,79 @@ const AimTrack = () => {
             
             <div
               ref={gameAreaRef}
-              className="relative w-full h-[600px] bg-card/30 backdrop-blur-sm border-2 border-primary/20 rounded-lg overflow-hidden"
-            style={{ 
-              cursor: "crosshair",
-              pointerEvents: isPaused ? "none" : "auto",
-              opacity: isPaused ? 0.5 : 1,
-            }}
-          >
-            {isPaused && (
-              <div className="absolute inset-0 flex items-center justify-center z-10">
-                <div className="text-4xl font-audiowide text-primary bg-card/90 px-8 py-4 rounded-lg border-2 border-primary">
-                  PAUSED - Press P to Resume
+              className="relative w-full h-[600px] bg-black border-2 border-primary/20 rounded-lg overflow-hidden"
+              style={{ 
+                cursor: "crosshair",
+                pointerEvents: isPaused ? "none" : "auto",
+                opacity: isPaused ? 0.5 : 1,
+              }}
+            >
+              {isPaused && (
+                <div className="absolute inset-0 flex items-center justify-center z-10">
+                  <div className="text-4xl font-audiowide text-primary bg-card/90 px-8 py-4 rounded-lg border-2 border-primary">
+                    PAUSED - Press P to Resume
+                  </div>
                 </div>
-              </div>
-            )}
-            {targets.map((target) => (
-              <div
-                key={target.id}
-                onClick={() => handleTargetClick(target.id)}
-                className="absolute rounded-full transition-all cursor-crosshair border-4 border-cyan-400"
-                style={{
-                  left: target.x,
-                  top: target.y,
-                  width: target.size,
-                  height: target.size,
-                  background: 'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)',
-                  boxShadow: '0 0 20px rgba(132, 250, 176, 0.6), 0 0 40px rgba(132, 250, 176, 0.4)',
-                }}
-              />
-            ))}
-
-          </div>
+              )}
+              
+              <Canvas camera={{ position: [0, 2, 5], fov: 75 }}>
+                <Sky sunPosition={[100, 20, 100]} />
+                <ambientLight intensity={0.5} />
+                <directionalLight position={[10, 10, 5]} intensity={1} />
+                <pointLight position={[0, 5, 0]} intensity={0.5} />
+                
+                {/* Ground */}
+                <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+                  <planeGeometry args={[50, 50]} />
+                  <meshStandardMaterial color="#1a1a1a" />
+                </mesh>
+                
+                {/* Grid */}
+                <Grid 
+                  args={[50, 50]} 
+                  cellSize={1} 
+                  cellThickness={0.5} 
+                  cellColor="#00ffff" 
+                  sectionSize={5} 
+                  sectionThickness={1} 
+                  sectionColor="#00aaff"
+                  fadeDistance={30}
+                  fadeStrength={1}
+                  position={[0, 0.01, 0]}
+                />
+                
+                {/* 3D Targets */}
+                {targets.map((target) => {
+                  const worldX = (target.x / 600) * 20 - 10;
+                  const worldZ = (target.y / 600) * 20 - 10;
+                  
+                  return (
+                    <mesh
+                      key={target.id}
+                      position={[worldX, 1.5, worldZ]}
+                      onClick={() => handleTargetClick(target.id)}
+                    >
+                      <sphereGeometry args={[target.size / 100, 32, 32]} />
+                      <meshStandardMaterial 
+                        color="#84fab0" 
+                        emissive="#8fd3f4"
+                        emissiveIntensity={0.5}
+                        metalness={0.3}
+                        roughness={0.2}
+                      />
+                    </mesh>
+                  );
+                })}
+                
+                <OrbitControls 
+                  enabled={!isPaused}
+                  enablePan={false}
+                  minDistance={3}
+                  maxDistance={15}
+                  maxPolarAngle={Math.PI / 2}
+                />
+              </Canvas>
+            </div>
           </div>
         )}
       </div>

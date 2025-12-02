@@ -9,9 +9,85 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Grid, Sky } from "@react-three/drei";
+import { Canvas, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+
+// First-person camera controller
+function FirstPersonCamera() {
+  const { camera } = useThree();
+  
+  useEffect(() => {
+    camera.position.set(0, 1.6, 0); // Eye level height
+    camera.rotation.set(0, 0, 0);
+  }, [camera]);
+
+  return null;
+}
+
+// 3D Room environment
+function TrainingRoom() {
+  return (
+    <group>
+      {/* Floor - checkered pattern */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+        <planeGeometry args={[30, 30]} />
+        <meshStandardMaterial color="#4a4a4a" />
+      </mesh>
+      
+      {/* Checkered floor grid */}
+      {Array.from({ length: 15 }).map((_, i) => 
+        Array.from({ length: 15 }).map((_, j) => (
+          <mesh 
+            key={`${i}-${j}`} 
+            rotation={[-Math.PI / 2, 0, 0]} 
+            position={[i * 2 - 14, 0.01, j * 2 - 14]}
+          >
+            <planeGeometry args={[1.9, 1.9]} />
+            <meshStandardMaterial color={(i + j) % 2 === 0 ? "#5a5a5a" : "#4a4a4a"} />
+          </mesh>
+        ))
+      )}
+      
+      {/* Back wall - checkered */}
+      <mesh position={[0, 5, -15]} receiveShadow>
+        <planeGeometry args={[30, 10]} />
+        <meshStandardMaterial color="#3a3a3a" />
+      </mesh>
+      
+      {/* Left wall */}
+      <mesh position={[-15, 5, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
+        <planeGeometry args={[30, 10]} />
+        <meshStandardMaterial color="#3a3a3a" />
+      </mesh>
+      
+      {/* Right wall */}
+      <mesh position={[15, 5, 0]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
+        <planeGeometry args={[30, 10]} />
+        <meshStandardMaterial color="#3a3a3a" />
+      </mesh>
+      
+      {/* Ceiling - checkered pattern */}
+      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 10, 0]}>
+        <planeGeometry args={[30, 30]} />
+        <meshStandardMaterial color="#2a2a2a" />
+      </mesh>
+      
+      {/* Ceiling grid */}
+      {Array.from({ length: 10 }).map((_, i) => 
+        Array.from({ length: 10 }).map((_, j) => (
+          <mesh 
+            key={`ceiling-${i}-${j}`} 
+            rotation={[Math.PI / 2, 0, 0]} 
+            position={[i * 3 - 13.5, 9.99, j * 3 - 13.5]}
+          >
+            <planeGeometry args={[2.8, 2.8]} />
+            <meshStandardMaterial color={(i + j) % 2 === 0 ? "#3a3a3a" : "#2a2a2a"} />
+          </mesh>
+        ))
+      )}
+    </group>
+  );
+}
 
 interface Target {
   id: number;
@@ -63,17 +139,14 @@ const AimTrack = () => {
   };
 
   const spawnTargets = (count: number, size: number) => {
-    if (!gameAreaRef.current) return;
-    
-    const area = gameAreaRef.current.getBoundingClientRect();
     const newTargets: Target[] = [];
 
     for (let i = 0; i < count; i++) {
       newTargets.push({
         id: Date.now() + i,
-        x: Math.random() * (area.width - size),
-        y: Math.random() * (area.height - size),
-        size,
+        x: (Math.random() - 0.5) * 20, // X position in 3D space
+        y: Math.random() * 5 + 1, // Y position (height)
+        size: size / 100, // Convert to 3D scale
       });
     }
 
@@ -448,75 +521,85 @@ const AimTrack = () => {
               ref={gameAreaRef}
               className="relative w-full h-[600px] bg-black border-2 border-primary/20 rounded-lg overflow-hidden"
               style={{ 
-                cursor: "crosshair",
+                cursor: "none",
                 pointerEvents: isPaused ? "none" : "auto",
-                opacity: isPaused ? 0.5 : 1,
               }}
             >
+              {/* Crosshair */}
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none">
+                <div className="relative w-8 h-8">
+                  <div className="absolute top-1/2 left-0 w-full h-[2px] bg-cyan-400" style={{ transform: 'translateY(-50%)' }} />
+                  <div className="absolute left-1/2 top-0 h-full w-[2px] bg-cyan-400" style={{ transform: 'translateX(-50%)' }} />
+                  <div className="absolute top-1/2 left-1/2 w-1 h-1 bg-cyan-400 rounded-full" style={{ transform: 'translate(-50%, -50%)' }} />
+                </div>
+              </div>
+
+              {/* Score overlay */}
+              <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 flex items-center gap-6 bg-card/80 backdrop-blur-sm px-6 py-3 rounded-lg border border-primary/30">
+                <div className="text-foreground font-audiowide">
+                  PTS <span className="text-primary text-2xl ml-2">{score}</span>
+                </div>
+                <div className="text-foreground font-audiowide">
+                  <span className="text-secondary text-2xl">{timeLeft}s</span>
+                </div>
+                {combo > 0 && (
+                  <div className="text-foreground font-audiowide animate-pulse">
+                    <span className="text-yellow-400 text-2xl">{combo}x</span>
+                  </div>
+                )}
+              </div>
+
               {isPaused && (
-                <div className="absolute inset-0 flex items-center justify-center z-10">
+                <div className="absolute inset-0 flex items-center justify-center z-30 bg-black/50">
                   <div className="text-4xl font-audiowide text-primary bg-card/90 px-8 py-4 rounded-lg border-2 border-primary">
                     PAUSED - Press P to Resume
                   </div>
                 </div>
               )}
               
-              <Canvas camera={{ position: [0, 2, 5], fov: 75 }}>
-                <Sky sunPosition={[100, 20, 100]} />
-                <ambientLight intensity={0.5} />
-                <directionalLight position={[10, 10, 5]} intensity={1} />
-                <pointLight position={[0, 5, 0]} intensity={0.5} />
+              <Canvas 
+                camera={{ position: [0, 1.6, 0], fov: 90 }}
+                onCreated={({ gl }) => {
+                  gl.setClearColor('#1a1a1a');
+                }}
+              >
+                <FirstPersonCamera />
+                <ambientLight intensity={0.4} />
+                <directionalLight position={[5, 10, 5]} intensity={0.8} castShadow />
+                <pointLight position={[0, 8, 0]} intensity={0.6} />
                 
-                {/* Ground */}
-                <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-                  <planeGeometry args={[50, 50]} />
-                  <meshStandardMaterial color="#1a1a1a" />
-                </mesh>
-                
-                {/* Grid */}
-                <Grid 
-                  args={[50, 50]} 
-                  cellSize={1} 
-                  cellThickness={0.5} 
-                  cellColor="#00ffff" 
-                  sectionSize={5} 
-                  sectionThickness={1} 
-                  sectionColor="#00aaff"
-                  fadeDistance={30}
-                  fadeStrength={1}
-                  position={[0, 0.01, 0]}
-                />
+                <TrainingRoom />
                 
                 {/* 3D Targets */}
                 {targets.map((target) => {
-                  const worldX = (target.x / 600) * 20 - 10;
-                  const worldZ = (target.y / 600) * 20 - 10;
+                  const zDistance = -8 - Math.random() * 5; // Spawn in front of camera
                   
                   return (
                     <mesh
                       key={target.id}
-                      position={[worldX, 1.5, worldZ]}
+                      position={[target.x, target.y, zDistance]}
                       onClick={() => handleTargetClick(target.id)}
                     >
-                      <sphereGeometry args={[target.size / 100, 32, 32]} />
+                      <sphereGeometry args={[target.size, 32, 32]} />
                       <meshStandardMaterial 
-                        color="#84fab0" 
-                        emissive="#8fd3f4"
-                        emissiveIntensity={0.5}
-                        metalness={0.3}
-                        roughness={0.2}
+                        color="#00d4ff" 
+                        emissive="#00d4ff"
+                        emissiveIntensity={0.6}
+                        metalness={0.4}
+                        roughness={0.1}
                       />
+                      {/* Outer glow ring */}
+                      <mesh scale={1.2}>
+                        <sphereGeometry args={[target.size, 16, 16]} />
+                        <meshBasicMaterial 
+                          color="#00d4ff" 
+                          transparent 
+                          opacity={0.2}
+                        />
+                      </mesh>
                     </mesh>
                   );
                 })}
-                
-                <OrbitControls 
-                  enabled={!isPaused}
-                  enablePan={false}
-                  minDistance={3}
-                  maxDistance={15}
-                  maxPolarAngle={Math.PI / 2}
-                />
               </Canvas>
             </div>
           </div>

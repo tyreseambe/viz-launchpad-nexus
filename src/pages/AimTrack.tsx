@@ -11,6 +11,8 @@ import type { User } from "@supabase/supabase-js";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Canvas, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+import { Maximize, Minimize } from "lucide-react";
+import { ShootingController } from "@/components/ShootingController";
 
 // First-person camera controller with mouse look
 function FirstPersonCamera({ sensitivity }: { sensitivity: number }) {
@@ -135,6 +137,8 @@ const AimTrack = () => {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
   const [selectedScenarioFilter, setSelectedScenarioFilter] = useState<string>("all");
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const comboTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -266,6 +270,16 @@ const AimTrack = () => {
     navigate("/auth");
   };
 
+  const toggleFullscreen = async () => {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      await document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
+
   // Auth state listener
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -315,11 +329,28 @@ const AimTrack = () => {
       if (e.key === 'p' || e.key === 'P') {
         togglePause();
       }
+      if (e.key === 'f' || e.key === 'F') {
+        toggleFullscreen();
+      }
+      if (e.key === 'Escape' && document.pointerLockElement) {
+        document.exitPointerLock();
+      }
+      if ((e.key === 's' || e.key === 'S') && isActive) {
+        setShowSettings((prev) => !prev);
+      }
+    };
+
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
     };
 
     window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, []);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, [isActive]);
 
   // Ensure targets respawn if they somehow disappear
   useEffect(() => {
@@ -403,6 +434,10 @@ const AimTrack = () => {
               <Button onClick={reset} variant="outline" className="border-primary/30">
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Reset
+              </Button>
+              <Button onClick={toggleFullscreen} variant="outline" className="border-primary/30">
+                {isFullscreen ? <Minimize className="w-4 h-4 mr-2" /> : <Maximize className="w-4 h-4 mr-2" />}
+                {isFullscreen ? "Exit (F)" : "Fullscreen (F)"}
               </Button>
             </div>
           )}
@@ -579,6 +614,25 @@ const AimTrack = () => {
                   </div>
                 </div>
               )}
+
+              {showSettings && isActive && (
+                <div className="absolute top-20 right-4 z-30 bg-card/95 backdrop-blur-sm p-6 rounded-lg border-2 border-primary/30 min-w-[300px]">
+                  <h3 className="text-lg font-audiowide text-foreground mb-4">Settings (S)</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm text-muted-foreground mb-2 block">Sensitivity: {sensitivity.toFixed(2)}</label>
+                      <Slider
+                        value={[sensitivity]}
+                        onValueChange={(val) => setSensitivity(val[0])}
+                        min={0.1}
+                        max={3}
+                        step={0.01}
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <Canvas 
                 camera={{ position: [0, 1.6, 0], fov: 90 }}
@@ -593,6 +647,11 @@ const AimTrack = () => {
                 }}
               >
                 <FirstPersonCamera sensitivity={sensitivity} />
+                <ShootingController 
+                  targets={targets} 
+                  onTargetHit={handleTargetClick} 
+                  isPaused={isPaused}
+                />
                 <ambientLight intensity={0.4} />
                 <directionalLight position={[5, 10, 5]} intensity={0.8} castShadow />
                 <pointLight position={[0, 8, 0]} intensity={0.6} />
@@ -604,21 +663,19 @@ const AimTrack = () => {
                   const zDistance = -8 - Math.random() * 5; // Spawn in front of camera
                   
                   return (
-                    <mesh
-                      key={target.id}
-                      position={[target.x, target.y, zDistance]}
-                      onClick={() => handleTargetClick(target.id)}
-                    >
-                      <sphereGeometry args={[target.size, 32, 32]} />
-                      <meshStandardMaterial 
-                        color="#00d4ff" 
-                        emissive="#00d4ff"
-                        emissiveIntensity={0.6}
-                        metalness={0.4}
-                        roughness={0.1}
-                      />
+                    <group key={target.id} position={[target.x, target.y, zDistance]}>
+                      <mesh userData={{ isTarget: true, targetId: target.id }}>
+                        <sphereGeometry args={[target.size, 32, 32]} />
+                        <meshStandardMaterial 
+                          color="#00d4ff" 
+                          emissive="#00d4ff"
+                          emissiveIntensity={0.6}
+                          metalness={0.4}
+                          roughness={0.1}
+                        />
+                      </mesh>
                       {/* Outer glow ring */}
-                      <mesh scale={1.2}>
+                      <mesh scale={1.2} userData={{ isTarget: true, targetId: target.id }}>
                         <sphereGeometry args={[target.size, 16, 16]} />
                         <meshBasicMaterial 
                           color="#00d4ff" 
@@ -626,7 +683,7 @@ const AimTrack = () => {
                           opacity={0.2}
                         />
                       </mesh>
-                    </mesh>
+                    </group>
                   );
                 })}
               </Canvas>

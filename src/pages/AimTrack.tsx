@@ -12,14 +12,37 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Canvas, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
-// First-person camera controller
-function FirstPersonCamera() {
-  const { camera } = useThree();
+// First-person camera controller with mouse look
+function FirstPersonCamera({ sensitivity }: { sensitivity: number }) {
+  const { camera, gl } = useThree();
+  const rotationRef = useRef({ x: 0, y: 0 });
   
   useEffect(() => {
-    camera.position.set(0, 1.6, 0); // Eye level height
-    camera.rotation.set(0, 0, 0);
-  }, [camera]);
+    camera.position.set(0, 1.6, 0);
+    camera.rotation.order = 'YXZ';
+    
+    const handleMouseMove = (event: MouseEvent) => {
+      if (document.pointerLockElement === gl.domElement) {
+        const movementX = event.movementX || 0;
+        const movementY = event.movementY || 0;
+        
+        rotationRef.current.y -= movementX * 0.002 * sensitivity;
+        rotationRef.current.x -= movementY * 0.002 * sensitivity;
+        
+        // Limit vertical rotation
+        rotationRef.current.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, rotationRef.current.x));
+        
+        camera.rotation.y = rotationRef.current.y;
+        camera.rotation.x = rotationRef.current.x;
+      }
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, [camera, gl, sensitivity]);
 
   return null;
 }
@@ -562,8 +585,14 @@ const AimTrack = () => {
                 onCreated={({ gl }) => {
                   gl.setClearColor('#1a1a1a');
                 }}
+                onClick={(e) => {
+                  // Request pointer lock when clicking the canvas
+                  if (isActive && !isPaused) {
+                    (e.target as HTMLCanvasElement).requestPointerLock();
+                  }
+                }}
               >
-                <FirstPersonCamera />
+                <FirstPersonCamera sensitivity={sensitivity} />
                 <ambientLight intensity={0.4} />
                 <directionalLight position={[5, 10, 5]} intensity={0.8} castShadow />
                 <pointLight position={[0, 8, 0]} intensity={0.6} />
